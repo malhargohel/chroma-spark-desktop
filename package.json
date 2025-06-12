@@ -1,0 +1,36 @@
+{
+  "name": "chroma-spark-desktop",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+  "electron": "^36.4.0",
+  "electron-builder": "^24.9.1" 
+},
+  "build": { 
+    "appId": "com.chromaspark.app",
+    "productName": "Chroma Spark",
+    "files": [
+      "index.html",
+      "main.js",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
