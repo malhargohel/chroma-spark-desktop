@@ -26,6 +26,28 @@
         #toast-notification {
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
         }
+         .lock-btn i {
+        transform-origin: center;
+        transition: all 0.3s ease;
+    }
+    
+    .lock-btn:hover i {
+        animation: wiggle 0.5s ease-in-out;
+    }
+    
+    @keyframes wiggle {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-20deg); }
+        75% { transform: rotate(20deg); }
+    }
+
+    .lock-icon-locked {
+        transform: rotate(0deg) !important;
+    }
+
+    .lock-icon-unlocked {
+        transform: rotate(-12deg) !important;
+    }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col min-h-screen no-select">
@@ -163,35 +185,44 @@
             const hexToPResult = document.getElementById('hex-to-p-result');
 
             // --- State ---
-            const numSwatches = 5;
-            let lockedColors = new Array(numSwatches).fill(null);
+            let currentColors = Array(5).fill('#000000');
+            let lockedColors = Array(5).fill(false);
+            let toastTimeout;
 
             // --- Palette Generator Functions ---
             function generateRandomColor() { return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0').toUpperCase(); }
             function generatePalette() {
-                paletteContainer.innerHTML = ''; 
-                for (let i = 0; i < numSwatches; i++) {
-                    const color = lockedColors[i] || generateRandomColor();
-                    const swatch = createColorSwatch(color, i, !!lockedColors[i]);
+                const paletteContainer = document.getElementById('palette-container');
+                paletteContainer.innerHTML = '';
+                
+                // Generate new colors only for unlocked slots
+                for (let i = 0; i < 5; i++) {
+                    if (!lockedColors[i]) {
+                        // Only generate new color if slot is not locked
+                        currentColors[i] = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                    }
+                    const swatch = createColorSwatch(currentColors[i], i, lockedColors[i]);
                     paletteContainer.appendChild(swatch);
                 }
+                
                 lucide.createIcons();
             }
             function createColorSwatch(color, index, isLocked) {
+                // Store the color in currentColors array
+                currentColors[index] = color;
+                
                 const swatch = document.createElement('div');
-                swatch.className = 'color-swatch flex-grow flex items-end justify-center p-6 md:p-8 relative';
+                swatch.className = 'color-swatch flex-grow flex items-center justify-center p-6 md:p-8 relative group';
                 swatch.style.backgroundColor = color;
                 const content = `
-                    <div class="text-center opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-4">
-                        <button class="lock-btn p-3 bg-black/20 hover:bg-black/40 rounded-full transition-colors" data-index="${index}" title="Lock color">
-                            <i data-lucide="${isLocked ? 'lock' : 'unlock'}" class="pointer-events-none text-white w-5 h-5"></i>
+                    <div class="text-center opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center gap-4 absolute top-1/2 transform -translate-y-1/2">
+                        <button class="lock-btn p-3 bg-black/20 hover:bg-black/40 rounded-full transition-all duration-300 transform hover:scale-110" data-index="${index}" title="${isLocked ? 'Unlock' : 'Lock'} color">
+                            <i data-lucide="${isLocked ? 'lock' : 'unlock'}" 
+                               class="pointer-events-none text-white w-5 h-5 ${isLocked ? 'lock-icon-locked' : 'lock-icon-unlocked'}"></i>
                         </button>
                     </div>
                     <div class="absolute bottom-6 left-0 right-0 flex justify-center">
-                         <div class="copy-hex-container flex items-center gap-2 cursor-pointer bg-black/20 hover:bg-black/40 p-2 px-4 rounded-full transition-colors" data-color="${color}" title="Copy hex code">
-                             <span class="font-mono tracking-wider text-white">${color}</span>
-                             <i data-lucide="copy" class="w-4 h-4 text-white/70"></i>
-                         </div>
+                        <p class="bg-black/20 text-sm px-3 py-1.5 rounded-full font-medium tracking-wide select-all cursor-pointer copy-hex-container" data-color="${color}">${color}</p>
                     </div>
                 `;
                 swatch.innerHTML = content;
@@ -199,16 +230,27 @@
             }
             function toggleLock(e) {
                 if (!e.target.classList.contains('lock-btn')) return;
+                
                 const index = parseInt(e.target.dataset.index, 10);
+                const icon = e.target.querySelector('i');
+                
+                lockedColors[index] = !lockedColors[index];
+                
+                // First update the icon
                 if (lockedColors[index]) {
-                    lockedColors[index] = null;
-                    e.target.querySelector('i').setAttribute('data-lucide', 'unlock');
+                    icon.setAttribute('data-lucide', 'lock');
+                    icon.classList.remove('lock-icon-unlocked');
+                    icon.classList.add('lock-icon-locked');
                 } else {
-                    const swatch = e.target.closest('.color-swatch');
-                    lockedColors[index] = swatch.style.backgroundColor;
-                    e.target.querySelector('i').setAttribute('data-lucide', 'lock');
+                    icon.setAttribute('data-lucide', 'unlock');
+                    icon.classList.remove('lock-icon-locked');
+                    icon.classList.add('lock-icon-unlocked');
                 }
-                lucide.createIcons({ nodes: [e.target.querySelector('i')] });
+                
+                // Force icon refresh after class changes
+                setTimeout(() => {
+                    lucide.createIcons({ nodes: [icon] });
+                }, 0);
             }
             function copyToClipboard(e) {
                 if (!e.target.closest('.copy-hex-container')) return;
@@ -227,7 +269,8 @@
             function showToast() {
                 toast.classList.remove('opacity-0', 'translate-y-4');
                 toast.classList.add('opacity-100', 'transform-none');
-                setTimeout(() => {
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
                     toast.classList.add('opacity-0', 'translate-y-4');
                     toast.classList.remove('opacity-100', 'transform-none');
                 }, 2000);
